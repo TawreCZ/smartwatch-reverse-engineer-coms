@@ -504,8 +504,9 @@ async def main():
 
         print(f"\nConnecting to: {target_device.name} ({target_device.address})")
 
-        # Use address directly to avoid double connection
-        device_addr = target_device.address if hasattr(target_device, 'address') else target_device
+        # Extract address as string to avoid passing BleakDevice object
+        device_addr = str(target_device.address)
+        print(f"  Using address: {device_addr}")
         async with BleakClient(device_addr, timeout=30.0) as client:
 
             device = VeryFitDevice(client)
