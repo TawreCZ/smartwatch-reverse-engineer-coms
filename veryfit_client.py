@@ -504,19 +504,33 @@ async def main():
 
         print(f"\nConnecting to: {target_device.name} ({target_device.address})")
 
-        async with BleakClient(target_device.address,
-                               timeout=30.0) as client:
+        # Use address directly to avoid double connection
+        device_addr = target_device.address if hasattr(target_device, 'address') else target_device
+        async with BleakClient(device_addr, timeout=30.0) as client:
 
             device = VeryFitDevice(client)
 
             # Set up notification callback
             def notification_handler(char, data):
                 logger.info(f"Notification on {char}: {data.hex()}")
-                asyncio.get_event_loop().create_task(
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = asyncio.get_event_loop()
+                loop.create_task(
                     device._response_queue.put(data)
                 )
 
-            await device.connect()
+            connected = await device.connect()
+            if not connected:
+                print("Failed to connect")
+                return
+
+            # List discovered characteristics
+            logger.info("Discovered characteristics:")
+            for service_uuid, chars in device.characteristics.items():
+                for char in chars:
+                    logger.info(f"  {char.uuid}: {char.properties}")
 
             # Enable notifications on all possible notify characteristics
             for char_uuid in [NOTIFY_CHAR_UUID, NOTIFY_CHAR_2_UUID,
